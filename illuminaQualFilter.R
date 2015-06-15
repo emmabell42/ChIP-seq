@@ -1,12 +1,13 @@
+library(ShortRead)
 for(i in 1:length(ofile)){
 cat("Reading",ofile[i],as.character(Sys.time()),sep=" ",fill=T)
 reads <- readFastq(ofile[i])
 ideal.readlength <- as.numeric(names(tail(sort(table(width(reads[1:100]))),n=1)))
 quals1 <- as(FastqQuality(quality(quality(reads[1:min(c(length(reads),20000000))]))),"matrix")
 if(length(reads)>20000000){
-        quals2 <- as(FastqQuality(quality(quality(reads[c(20000001:min(c(length(reads),40000000))]))),"matrix")
+        quals2 <- as(FastqQuality(quality(quality(reads[20000001:min(c(length(reads),40000000))]))),"matrix")
 if(length(reads)>40000000){
-        quals3 <- as(FastqQuality(quality(quality(reads[c(40000001:length(reads))]))),"matrix")    
+        quals3 <- as(FastqQuality(quality(quality(reads[40000001:length(reads)]))),"matrix")    
 }
 trim <- apply(quals1,MARGIN=1,function(x)min(which(cumsum(as.numeric(x<20))>5)))
 if(length(reads)>20000000){
