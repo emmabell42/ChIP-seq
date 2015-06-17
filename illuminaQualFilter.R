@@ -18,7 +18,6 @@ if(length(reads)>40000000){
         trim3 <- apply(quals3,MARGIN=1,function(x)min(which(cumsum(as.numeric(x<20))>5)))
         trim <- c(trim,trim3)
 }
-}
 bad.q <- which(!is.infinite(trim) & trim<(0.8*ideal.readlength))
 good.reads <- setdiff(c(1:length(reads)),bad.q)
 reads <- reads[good.reads]
