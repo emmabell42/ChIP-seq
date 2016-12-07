@@ -66,7 +66,8 @@ gc.pc[[i]] <- (counts[,2]+counts[,3])/lengths[[i]]
 cg.oe[[i]] <- (counts[,1]/lengths[[i]])/((gc.pc[[i]]/2)^2)
 }
 #Global ratio of observed to expected CpGs (0.1908349)
-0.0083/((0.4171/2)^2)
+global.gc.pc <- 0.4171 
+global.oe <- 0.0083/((0.4171/2)^2)
 # Remove the huge outlier in the TE
 cg.oe[[2]][which(cg.oe[[2]]>2)] <- NA
 png("enhancer_lengths.png")
@@ -74,9 +75,9 @@ boxplot(lengths[[1]],lengths[[3]],main="Length")
 dev.off()
 png("enhancer_gc_pc.png")
 boxplot(gc.pc[[1]],gc.pc[[3]],Main="GC%")
-abline(h=0.4171,col="darkgrey",lty=2,lwd=2)
+abline(h=global.gc.pc,col="darkgrey",lty=2,lwd=2)
 dev.off()
 png("enhancer_cg_oe.png")
 boxplot(cg.oe[[1]],cg.oe[[3]],main="CG OE")
-abline(h=0.1908349,col="darkgrey",lty=2,lwd=2)
+abline(h=global.oe,col="darkgrey",lty=2,lwd=2)
 dev.off()
