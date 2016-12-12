@@ -1,5 +1,78 @@
 #########################################################################
 #
+## Chapter 3, figure 2: Transcription factor coverage at Typical Enhancers is similar to coverage at non-functional Super Enhancers
+#
+#########################################################################
+#
+#
+library(BSgenome.Mmusculus.UCSC.mm9, quietly = TRUE)
+library(TxDb.Mmusculus.UCSC.mm9.knownGene, quietly = TRUE)
+library(GenomicRanges)
+library(stringr)
+setwd("/data/emmabell42/resources/")
+toRead <- c("ESC_Super_enhancers.bed","TE_coords.bed","Murine proB cell SE locations.txt","C2C12 cell SE locations.txt","Th cell SE locations.txt","Macrophage cell SE locations.txt")
+regions <- c("esc.se","esc.te","prob","c2c12","th","macro")
+lengths <- as.list(rep(NA,6))
+names(lengths) <- regions
+cg.content <- lengths
+gc.pc <- lengths
+cg.oe <- lengths
+# Read in bed files, convert to GRanges objects and get sequences
+for(i in 1:length(toRead)){
+  tmp <- read.table(file=toRead[i],sep="\t",comment.char="",quote="",head=F,stringsAsFactors=F)
+  colnames(tmp) <- c("chr","start","stop")
+  assign(regions[i],tmp)
+  # Calculate lengths of enhancers
+  lengths[[i]] <- tmp[,3]-tmp[,2]
+  tmp.ranges <- with(tmp, GRanges(chr, IRanges(start=start, end=stop)))
+  rangesname <- paste0(regions[i],".ranges")
+  assign(rangesname,tmp.ranges)png("enhancer_lengths.png")
+boxplot(lengths[[1]],lengths[[2]],lengths[[3]],main="Length (BP)",border="darkgrey",pch=16)
+dev.off()
+png("enhancer_gc_pc.png")
+boxplot(gc.pc[[1]],gc.pc[[2]],gc.pc[[3]],Main="GC%",border="darkgrey",pch=16)
+abline(h=global.gc.pc,col="darkgrey",lty=2,lwd=2)
+dev.off()
+png("enhancer_cg_oe.png")
+boxplot(cg.oe[[1]],cg.oe[[2]],cg.oe[[3]],main="CG OE",border="darkgrey",pch=16)
+abline(h=global.oe,col="darkgrey",lty=2,lwd=2)
+dev.off()
+
+  seqsname <- paste0(regions[i],".seqs")
+  tmp.seqs <- getSeq(Mmusculus, seqnames(tmp.ranges), start(tmp.ranges), end(tmp.ranges), as.character = T)
+  # Calculate CpG, C and G frequency
+  counts <- cbind(cg=rep(NA,nrow(tmp)),c=rep(NA,nrow(tmp)),g=rep(NA,nrow(tmp)))
+  for(j in 1:nrow(counts)){ 
+    counts[j,1] <- str_count(tmp.seqs[j], fixed("CG")) 
+    counts[j,2] <- str_count(tmp.seqs[j], fixed("C")) 
+    counts[j,3] <- str_count(tmp.seqs[j], fixed("G")) 
+  }
+  cg.content[[i]] <- counts 
+  # calculate GC%
+  gc.pc[[i]] <- (counts[,2]+counts[,3])/lengths[[i]]
+  # Calculate observed/expected CpGs with the Saxonov method
+  cg.oe[[i]] <- (counts[,1]/lengths[[i]])/((gc.pc[[i]]/2)^2)
+}
+#Global ratio of observed to expected CpGs (0.1908349)
+global.gc.pc <- 0.4171 
+global.oe <- 0.0083/((0.4171/2)^2)
+# Remove the huge outlier in the TE
+cg.oe[[2]][which(cg.oe[[2]]>2)] <- NA
+png("enhancer_lengths.png")
+boxplot(lengths[[1]],lengths[[2]],lengths[[3]],main="Length (BP)",col="grey",pch=16)
+dev.off()
+png("enhancer_gc_pc.png")
+boxplot(gc.pc[[1]],gc.pc[[2]],gc.pc[[3]],Main="GC%",col="grey",pch=16)
+abline(h=global.gc.pc,col="darkgrey",lty=2,lwd=2)
+dev.off()
+png("enhancer_cg_oe.png")
+boxplot(cg.oe[[1]],cg.oe[[2]],cg.oe[[3]],main="CG OE",col="grey",pch=16)
+abline(h=global.oe,col="darkgrey",lty=2,lwd=2)
+dev.off()
+#
+#
+#########################################################################
+#
 ## Chapter 3, figure 5: Transcription factor binding at mESC Super Enhancers clusters at hypomethylated constituent enhancers.
 #
 #########################################################################
