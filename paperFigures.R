@@ -81,3 +81,66 @@ png("enhancer_cg_oe.png")
 boxplot(cg.oe[[1]],cg.oe[[3]],main="CG OE",border=c("#3288bd","#f46d43"),pch=16)
 abline(h=global.oe,col="darkgrey",lty=2,lwd=2)
 dev.off()
+############################################################################
+#
+## Manuscript figure 2
+#
+############################################################################
+#
+#
+#
+############################################################################
+#
+## Manuscript figure 3
+#
+############################################################################
+library(vioplot)
+setwd("X:/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/RNA-seq")
+expr <- read.table("expression_of_SE_associated_genes_vitro_vivo.txt",sep="\t",head=T,comment.char="",quote="",stringsAsFactors=F)
+# Each sample is provided in triplicate
+# Calculate the geometric mean and standard deviation across each sample
+geomean = function(x, na.rm=TRUE, zero.propagate = FALSE){
+  if(any(x < 0, na.rm = TRUE)){
+    return(NaN)
+  }
+  if(zero.propagate){
+    if(any(x == 0, na.rm = TRUE)){
+      return(0)
+    }
+    exp(mean(log(x), na.rm = na.rm))
+  } else {
+    exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+  }
+}
+# Samples: 
+# 	1. ESC.2i.BU
+#	2. EpiLC.BU
+#	3. ESC.2i.MA
+#	4. ESC.ser.MA
+#	5. EpiSC
+#	6. ICM
+#	7. ERSE
+#	8. APE
+expr.comb <- array(NA,dim=c(nrow(expr),10))
+expr.comb <- data.frame(expr.comb)
+colnames(expr.comb) <- c(colnames(expr)[1:2],"ESC.2i.BU","EpiLC.BU","ESC.2i.MA","ESC.ser.MA","EpiSC","ICM","ERSE","APE")
+expr.comb[,1:2] <- expr[,1:2]
+reps <- list(3:5,6:8,9:12,13:15,16:18,19:21,22:24,25:27)
+for(i in 1:8){
+y <- i+2
+for(j in 1:nrow(expr)){
+expr.comb[j,y] <- mean(as.numeric(expr[j,as.numeric(reps[[i]])],na.rm=T))
+}
+}
+# Offset by 1 to allow log transformation
+expr.comb[,3:10] <- expr.comb[,3:10]+1
+expr.comb[which(expr.comb[,1]=="Mixed"|expr.comb[,1]=="Hypomethylated"),1] <- "Maintained"
+boxplot(log10(expr.comb[which(expr.comb[,1]=="Hypermethylated"),5:7]))
+meth <-  na.omit(log10(expr.comb[which(expr.comb[,1]=="Hypermethylated"),5:7]))
+main <-  na.omit(log10(expr.comb[which(expr.comb[,1]=="Maintained"),5:7]))
+dev.new(width=4,height=6)
+vioplot(meth[,1],meth[,2],meth[,3],col="white",rectCol="darkgrey",border="magenta")
+vioplot(main[,1],main[,2],main[,3],col="white",rectCol="darkgrey",border=rgb(0,1,0))
+
+
+
