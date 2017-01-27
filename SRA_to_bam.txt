@@ -1,0 +1,111 @@
+####################
+#This script downloads SRA files from NCBI, converts them to FastQ, aligns them to the relevant genome using Bowtie2 and runs MACs to call peaks.
+####################
+#
+##########
+#Download SRA files
+##########
+echo "SRX/SRX334/SRX334974/
+SRX/SRX334/SRX334976/" > toDownload
+#!/bin/bash
+baseDir="ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByExp/sra/"
+while read LINE;
+do
+        wget -r -np -k -nH -R robots.txt $baseDir$LINE
+done < toDownload
+##########
+#Run FastQ dump on those files
+##########
+mkdir ./fastq
+find . -name *.sra | while read LINE; do /data/seqtools/sratoolkit.2.4.2-centos_linux64/bin/fastq-dump.2.4.2 $LINE "`basename "$LINE" .sra`.fastq"; done
+mv *.fastq ./fastq/
+##########
+#Run FastQC on those files
+##########
+mkdir ./fastqc
+for file in ./fastq/*.fastq; do /data/seqtools/FastQC/fastqc -o ./fastqc "$file"; done;
+# Pull overrepresented sequences
+nice R
+library(XML)
+library(GenomicRanges)
+library(ShortRead)
+overrepresented <- c()
+setwd(paste0(getwd(),"/fastqc"))
+htmlFiles <- list.files()[grep(".html",list.files())]
+for(i in 1:length(htmlFiles)){
+tables <- readHTMLTable(htmlFiles[i])
+contents <- unlist(lapply(tables,function(x) "Possible Source" %in% colnames(x)))
+lengthContents <- length(grep(TRUE,contents))
+	if(lengthContents>0) 
+	{ 
+	tmp <- as.character(tables[[grep(TRUE,contents)]][,1])
+	overrepresented <- c(overrepresented,tmp)
+	}
+}
+overrepresented <- overrepresented[!duplicated(overrepresented)]
+names(overrepresented) <- paste0("Overrepresented",1:length(overrepresented))
+overrepresented <- DNAStringSet(overrepresented)
+writeFasta(overrepresented,"overrepresented.fa")
+q()
+n
+##########
+#Trim Fastq files
+##########
+mv ./fastqc/overrepresented.fa ../
+mkdir fastq.trimmed
+for file in ./fastq/*.fastq; 
+do 
+java -jar /data/seqtools/Trimmomatic-0.33/trimmomatic-0.33.jar SE -threads 12 -phred33 $file ./fastq.trimmed/"`basename "$file" .fastq `_trimmed.fastq" ILLUMINACLIP:overrepresented.fa:2:30:10 LEADING:20 TRAILING:20 SLIDINGWINDOW:4:20 MINLEN:20;
+done 
+#
+## Repeat FastQC
+#
+mkdir ./fastq.trimmed.fastqc
+for file in ./fastq.trimmed/*.fastq; do /data/seqtools/FastQC/fastqc -o ./fastq.trimmed.fastqc "$file"; done; 
+for file in ./fastq.trimmed.fastqc/*.zip; do unzip $file; done;
+mv *_fastqc ./fastq.trimmed.fastqc
+find . -name *summary.txt > ./summaries.txt
+#
+## Read in FastQC HTML files and report any errors
+#
+nice R
+summaries <- read.table("summaries.txt",stringsAsFactors=F)
+summaries <- apply(summaries,1,function(x) substr(x,2,59))
+toName <- c()
+toName <- apply(summaries,1,function(x) substr(x,2,12))
+summaryTable <- c()
+for(i in 1:length(summaries)){
+toRead <- paste0(getwd(),summaries[i])
+summary <- read.table(toRead,sep="\t")
+summaryTable <- rbind(summaryTable,summary)
+}
+summaryTable <- summaryTable[which(!summaryTable[,1]=="PASS"),]
+table(summaryTable[,2])
+q()
+n
+##########
+## Align with Bowtie2
+##########
+export BOWTIE2_INDEXES=/data/seqtools/genomes/mm9/bowtie2/
+mkdir sam 
+mkdir bam 
+find . -name "*.fastq" | while read filename; 
+do 
+/data/seqtools/bowtie2-2.2.3/bowtie2 -x mm9 -U $filename > ./sam/"`basename "$filename" .trimmed.fastq`.sam" -p 8;
+samtools view -bS ./sam/"`basename "$filename" .trimmed.fastq`.sam" > ./bam/"`basename "$filename" .trimmed.fastq`.bam";
+done
+
+
+
+
+
+
+
+
+#Run MACS on your treatment (-t) and control (-c) SAM files. If MACS calculates d<60 run without model.
+
+cd /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/
+macs14 -t /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_2.sam -c /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_2.sam -n GSE56098_2014_12_17 -g mm -B -S -m 10,30; 
+
+cd /data/emmabell42/ChIP-seq/GSE56098/
+macs14 -t /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_2.sam -c /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_2.sam -n GSE56098_2014_12_17 -n GSE39502_GSE56098_rep1_2014_05_23 -g mm -B -S --nomodel --shiftsize 100; 
