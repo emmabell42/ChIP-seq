@@ -5,13 +5,13 @@
 ##########
 #Download SRA files
 ##########
-echo "SRX/SRX334/SRX334974/
-SRX/SRX334/SRX334976/" > toDownload
+#
+#Create a text file listing the paths to SRA files.
 #!/bin/bash
 baseDir="ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByExp/sra/"
 while read LINE;
 do
-        wget -r -np -k -nH -R robots.txt $baseDir$LINE
+        wget -r -np -k -nH -R robots.txt $baseDir$LINE.sra
 done < toDownload
 ##########
 #Run FastQ dump on those files
