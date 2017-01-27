@@ -89,7 +89,7 @@ n
 export BOWTIE2_INDEXES=/data/seqtools/genomes/mm9/bowtie2/
 mkdir sam 
 mkdir bam 
-find . -name "*.fastq" | while read filename; 
+find . -name "*_trimmed.fastq" | while read filename; 
 do 
 /data/seqtools/bowtie2-2.2.3/bowtie2 -x mm9 -U $filename > ./sam/"`basename "$filename" .trimmed.fastq`.sam" -p 8;
 samtools view -bS ./sam/"`basename "$filename" .trimmed.fastq`.sam" > ./bam/"`basename "$filename" .trimmed.fastq`.bam";
