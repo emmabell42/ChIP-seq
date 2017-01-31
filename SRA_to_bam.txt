@@ -94,18 +94,3 @@ do
 /data/seqtools/bowtie2-2.2.3/bowtie2 -x mm9 -U $filename > ./sam/"`basename "$filename" .trimmed.fastq`.sam" -p 8;
 samtools view -bS ./sam/"`basename "$filename" .trimmed.fastq`.sam" > ./bam/"`basename "$filename" .trimmed.fastq`.bam";
 done
-
-
-
-
-
-
-
-
-#Run MACS on your treatment (-t) and control (-c) SAM files. If MACS calculates d<60 run without model.
-
-cd /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/
-macs14 -t /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_2.sam -c /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_2.sam -n GSE56098_2014_12_17 -g mm -B -S -m 10,30; 
-
-cd /data/emmabell42/ChIP-seq/GSE56098/
-macs14 -t /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Otx2_2.sam -c /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_1.sam /data/emmabell42/ChIP-seq/GSE56098/mESC/Otx2/GSE56098_mESC_Input_2.sam -n GSE56098_2014_12_17 -n GSE39502_GSE56098_rep1_2014_05_23 -g mm -B -S --nomodel --shiftsize 100; 
