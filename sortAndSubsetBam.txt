@@ -1,0 +1,11 @@
+##########
+# Subset bam files using bedtools intersect
+##########
+#
+mkdir ./subset.bam
+for file in ./bam/*.bam;
+do
+samtools sort $file "`basename "$file" _trimmed.fastq.bam`.sorted" -@ 12;
+mv *.bam ./bam
+bedtools intersect -abam ./bam/"`basename "$file" _trimmed.fastq.bam`.sorted.bam" -b /data/emmabell42/resources/ESC_enhancers_plus20.bed > ./subset.bam/"`basename "$file" .bam`.subset.bam" -sorted;
+done 
