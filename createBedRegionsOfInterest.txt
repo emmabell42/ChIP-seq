@@ -1,0 +1,33 @@
+##########
+# Create a bed file listing the co-ordinates of your regions of interest
+##########
+#
+nice R
+setwd("/data/emmabell42/resources/")
+se <- read.table(file="ESC_Super_enhancers.bed",head=F,stringsAsFactors=F,comment.char="",quote="",sep="\t")
+te <- read.table(file="TE_coords.bed",head=F,stringsAsFactors=F,comment.char="",quote="",sep="\t")
+regions <- c("se","te")
+toWrite <- c("ESC_Super_Enhancers_plus20.bed","ESC_Typical_Enhancers_plus20.bed")
+for(i in 1:length(regions)){
+coords <- get(regions[i])
+flankWidth <- (coords[,3]-coords[,2])*0.2
+flankWidth <- round(flankWidth,0)
+coords[,2] <- coords[,2]-flankWidth
+coords[,3] <- coords[,3]+flankWidth
+assign(toWrite[i],coords)
+write.table(coords,toWrite[i],sep="\t",row.names=F,col.names=F,quote=F)
+}
+allRegions <- rbind(ESC_Super_Enhancers_plus20.bed,ESC_Typical_Enhancers_plus20.bed)
+allRegions <- allRegions[order(allRegions[,2]),]
+chr <- names(table(allRegions[,1]))[c(1,12:19,2:11,20)]
+allRegions[,1] <- factor(allRegion[,1],levels=chr)
+allRegions <- allRegions[order(allRegions[,1]),]
+write.table(allRegions,"ESC_enhancers_plus20.bed",sep="\t",row.names=F,col.names=F,quote=F)
+q()
+n
+##
+# Sort bed files 
+##
+sort -k1,1 -k2,2n /data/emmabell42/resources/ESC_Super_Enhancers_plus20.bed > /data/emmabell42/resources/ESC_Super_Enhancers_plus20_sorted.bed
+sort -k1,1 -k2,2n /data/emmabell42/resources/ESC_Typical_Enhancers_plus20.bed > /data/emmabell42/resources/ESC_Typical_Enhancers_plus20_sorted.bed
+sort -k1,1 -k2,2n /data/emmabell42/resources/ESC_enhancers_plus20.bed > /data/emmabell42/resources/ESC_enhancers_plus20_sorted.bed
