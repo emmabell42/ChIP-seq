@@ -11,7 +11,7 @@
 baseDir="ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByExp/sra/"
 while read LINE;
 do
-        wget -r -np -k -nH -R robots.txt $baseDir$LINE.sra
+        wget -r -np -k -nH -R robots.txt $baseDir$LINE
 done < toDownload
 ##########
 #Run FastQ dump on those files
@@ -51,7 +51,7 @@ n
 ##########
 #Trim Fastq files
 ##########
-mv ./fastqc/overrepresented.fa ../
+mv ./fastqc/overrepresented.fa ./
 mkdir fastq.trimmed
 for file in ./fastq/*.fastq; 
 do 
