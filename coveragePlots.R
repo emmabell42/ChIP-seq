@@ -64,7 +64,7 @@ plotCoverage <- function(cov,regions,precision=1000,normalize.widths=TRUE,col="b
 ## \n
 #
 bamFiles <- list.files(recursive=T)[grep(".subset.bam",list.files(recursive=T))]
-toExclude <- c(".txt",".png","RNA",".pdf","Otx2ko","MEF")
+toExclude <- c(".txt",".png","RNA",".pdf","Otx2ko","MEF","C2C12")
 bamFiles[grep(paste(toExclude,collapse="|"),bamFiles)] <- NA
 bamFiles <- na.omit(bamFiles)
 covObjects <- c()
@@ -72,7 +72,7 @@ for(i in 1:length(bamFiles)){
 last <- length(strsplit(bamFiles[i],"/")[[1]])
 covObjects[i] <- strsplit(bamFiles[i],"/")[[1]][last]
 }
-covObjects <- gsub("sorted.subset.bam",".cov",covObjects)
+covObjects <- gsub(".sorted.subset.bam",".cov",covObjects)
 covObjects <- gsub(".subset.bam",".cov",covObjects)
 for(i in 1:length(bamFiles)){
 cat(i,"Reading and removing duplicates from",bamFiles[i],"at",as.character(Sys.time()),"\n",sep=" ")
@@ -86,4 +86,74 @@ nReads <- length(tmp.ranges)
 normFactor <- 10^6/nReads
 normCoverage <- tmp.cov*normFactor
 assign(covObjects[i],normCoverage)
+}
+inputs <- cbind(ip=covObjects,inputs="CTRL")
+toExclude <- c("WCE","Control","input","Input","FAIRE","ATAC")
+controls <- unique(covObjects[grep(paste(toExclude,collapse="|"),covObjects)]) 
+inputs[grep(paste(toExclude,collapse="|"),inputs[,1])] <- NA
+inputs <- na.omit(inputs)
+gse <- c()		
+for(i in 1:length(covObjects)){
+gse[i] <- strsplit(covObjects[i],"_")[[1]][1]
+}
+inputs[grep("Bruce4",inputs[,1]),2] <- "ES-Bruce4-Control-mouse.cov"
+inputs[grep("PennState",inputs[,1]),2] <- "ES-E14-Control-mouse-PennState.cov"
+inputs[grep("Stanford",inputs[,1]),2] <- "ES-E14-Control-mouse-Stanford.cov"
+inputs[grep("EsrrbNULL",inputs[,1]),2] <- "EsrrbNULL_input.cov"
+inputs[grep("EsrrbWT",inputs[,1]),2] <- "EsrrbWT_input.cov"
+inputs[grep("GSE49848",inputs[,1]),2] <- "GSE49848_Input.cov"
+inputs[grep("GSE27841",inputs[,1]),2] <- "GSE27841_mESC_WCE.cov"
+inputs[grep("GSE27841_H3K4me1",inputs[,1]),2] <- "GSE27841_mESC_WCE_for_H3K4me1.cov"
+inputs[grep("GSE37262",inputs[,1]),2] <- "GSE37262_mESC_Input.cov"
+inputs[grep("GSE39610",inputs[,1]),2] <- "GSE39610_MmES_Input.cov"
+inputs[grep("GSE61188",inputs[,1]),2] <- "GSE61188_ChIP_WCE.cov"
+inputs[grep("GSE56098",inputs[,1]),2] <- "GSE56098_Input_ESC.cov"
+inputs[grep("EpiLC_minus",inputs[,1]),2] <- "GSE56098_Input_EpiLC_minusActivinA.cov"
+inputs[grep("EpiLC_plus",inputs[,1]),2] <- "GSE56098_Input_EpiLC_plusActivinA.cov"
+inputs[grep("GSE22562",inputs[,1]),2] <- "GSE22562_mESC_WCE.cov"
+inputs[grep("GSE24164",inputs[,1]),2] <- "GSE24164_mESC_WCE.cov"
+inputs[grep("GSE44286",inputs[,1]),2] <- "GSE44286_mESC_WCE.cov"
+stanford <- c("MAFK","CHD2","HCFC1","ZNF384","ZC3H11A","Stanford")
+inputs[c(grep(paste(stanford,collapse="|"),inputs[,1])),2] <-  "ES-E14-Control-mouse-Stanford.cov"
+inputs[grep("CTRL",inputs[,2]),] <- "ES-E14-Control-mouse-PennState.cov"
+for(i in 1:nrow(inputs)){
+ip <- get(inputs[i,1])
+ip <- ip+1
+input <- get(inputs[i,2])
+input <- input+1
+ip.norm <- ip/input
+assign(gsub(".cov",".norm.cov",inputs[i,1]),ip.norm)
+}
+#
+## Read in regions
+#
+setwd("/data/emmabell42/resources")
+bedFiles <- c("DMRandPU_col.bed","DMRregions.txt","ESC_Super_enhancers.bed","protectedregions.txt","SE_meth.bed","TE_coords.bed","ESC_Super_Enhancers_plus20_sorted.bed","ESC_Typical_Enhancers_plus20_sorted.bed")
+bedToName <- c("unmeth","hyper","se","hypo","meth","te","sePlus20","tePlus20")
+bed.gr <- paste0(bedToName,".gr")
+for(i in 1:length(bedFiles)){
+bed <- read.table(bedFiles[i],head=F,sep="\t",stringsAsFactors=T)
+colnames(bed)[1] <- "chr"
+colnames(bed)[2] <- "start"
+colnames(bed)[3] <- "end"
+assign(bedToName[i],bed)
+gr <- as(bed,"GRanges")
+assign(bed.gr[i],gr)
+}
+#
+## Calculate coverage
+#
+ChIP.coverage <- array(NA,dim=c(8,10000))
+regions.gr <- 
+rownames(ChIP.coverage) <- gr
+colnames(ChIP.coverage) <- 1:10000
+for(i in 1:nrow(inputs)){
+baseName <- gsub(".cov","",inputs[i,1])
+rName <- paste0(baseName,".aveCov")
+fileName <- paste0(rName,"_aveCov.txt")
+ChIP.coverage <- plotCoverage(cov=get(covObjects[i]),regions=list(get(bed.gr[1]),get(bed.gr[2]),get(bed.gr[3]),get(bed.gr[4]),get(bed.gr[5]),get(bed.gr[6]),get(bed.gr[7]),get(bed.gr[8])),normalize.widths=TRUE,precision=10000)
+rownames(ChIP.coverage) <- bed.gr
+colnames(ChIP.coverage) <- 1:10000
+assign(rName,ChIP.coverage)
+write.table(ChIP.coverage,fileName,sep="\t",quote=F)
 }
