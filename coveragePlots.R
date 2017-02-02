@@ -92,10 +92,6 @@ toExclude <- c("WCE","Control","input","Input","FAIRE","ATAC")
 controls <- unique(covObjects[grep(paste(toExclude,collapse="|"),covObjects)]) 
 inputs[grep(paste(toExclude,collapse="|"),inputs[,1])] <- NA
 inputs <- na.omit(inputs)
-gse <- c()		
-for(i in 1:length(covObjects)){
-gse[i] <- strsplit(covObjects[i],"_")[[1]][1]
-}
 inputs[grep("Bruce4",inputs[,1]),2] <- "ES-Bruce4-Control-mouse.cov"
 inputs[grep("PennState",inputs[,1]),2] <- "ES-E14-Control-mouse-PennState.cov"
 inputs[grep("Stanford",inputs[,1]),2] <- "ES-E14-Control-mouse-Stanford.cov"
@@ -143,17 +139,58 @@ assign(bed.gr[i],gr)
 #
 ## Calculate coverage
 #
-ChIP.coverage <- array(NA,dim=c(8,10000))
-regions.gr <- 
-rownames(ChIP.coverage) <- gr
-colnames(ChIP.coverage) <- 1:10000
-for(i in 1:nrow(inputs)){
-baseName <- gsub(".cov","",inputs[i,1])
-rName <- paste0(baseName,".aveCov")
-fileName <- paste0(rName,"_aveCov.txt")
-ChIP.coverage <- plotCoverage(cov=get(covObjects[i]),regions=list(get(bed.gr[1]),get(bed.gr[2]),get(bed.gr[3]),get(bed.gr[4]),get(bed.gr[5]),get(bed.gr[6]),get(bed.gr[7]),get(bed.gr[8])),normalize.widths=TRUE,precision=10000)
+toPlot <- c(ls()[grep(".norm.cov",ls())],
+ls()[grep("FAIRE",ls())],
+ls()[grep("ATAC",ls())])
+ChIP.coverage <- array(NA,dim=c(8,1000))
 rownames(ChIP.coverage) <- bed.gr
-colnames(ChIP.coverage) <- 1:10000
+colnames(ChIP.coverage) <- 1:1000
+for(i in 1:length(toPlot)){
+baseName <- gsub(".norm.cov","",toPlot[i])
+rName <- paste0(baseName,".ipnorm.aveCov")
+fileName <- paste0(rName,".ipnorm.txt")
+ChIP.coverage <- plotCoverage(cov=get(toPlot[i]),regions=list(get(bed.gr[1]),get(bed.gr[2]),get(bed.gr[3]),get(bed.gr[4]),get(bed.gr[5]),get(bed.gr[6]),get(bed.gr[7]),get(bed.gr[8])),normalize.widths=TRUE,precision=1000)
+rownames(ChIP.coverage) <- bed.gr
+colnames(ChIP.coverage) <- 1:1000
 assign(rName,ChIP.coverage)
 write.table(ChIP.coverage,fileName,sep="\t",quote=F)
+}
+#
+## Calculate loess line
+#
+comparisons <- list(SeVsTe=NA,UnmethVsMeth=NA,HypoVsHyperVsMeth=NA)
+loessLines <- list(SeVsTe=NA,UnmethVsMeth=NA,HypoVsHyperVsMeth=NA)
+x.axis <- 1:1000
+for(i in 1:length(toPlot)){
+calcLoess <- get(toPlot[i])
+comparisons <- list(seVsTe=toPlot[c(3,6),],unmethVsMeth=toPlot[c(1,5),],hypoVsHyperVsMeth=toPlot[c(4,2,5),])
+	for(j in 1:3){
+	toCompare <- comparisons[[j]]
+	loessLines[[j]] <- t(apply(calcLoess,1,function(x) predict(loess(as.numeric(x)~x.axis))))
+assign(paste0(toPlot[i],".loess"),loessLines)
+}
+#
+## Plot coverage of:
+		#SE vs TE
+		#Unmeth vs Meth
+		#Hypo vs Hyper vs Meth
+#
+for(i in 1:length(toPlot)){
+toName <- gsub(".cov","",toPlot[i])
+covPlot <- get(toPlot[i])
+	#SE vs TE
+png(paste0(toName,"_SEvsTE.png"),width=240,height=480)
+plotCoverage(cov=covPlot,regions=list(se.gr,te.gr),col=c("pink","grey"))
+title(toName)
+dev.off()
+	#Unmeth vs Meth
+png(paste0(toName,"_UnmethvsMeth.png"),width=240,height=480)
+plotCoverage(cov=covPlot,regions=list(unmeth.gr,meth.gr),col=c("lightblue","grey"))
+title(toName)
+dev.off()
+	#Hypo vs Hyper vs Meth
+png(paste0(toName,"_HypovsHypervsMeth.png"),width=240,height=480)
+plotCoverage(cov=covPlot,regions=list(hypo.gr,hyper.gr,meth.gr),col=c(rgb(161,215,106,maxColorValue=255),rgb(233,163,201,maxColorValue=255),"grey"))
+title(toName)
+dev.off()
 }
