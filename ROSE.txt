@@ -1,0 +1,86 @@
+########################################
+#
+## Running ROSE
+#
+########################################
+#
+## Sort bam files
+#
+cd /data/emmabell42/Analysis/ROSE/bam
+for file in *.bam;
+do
+samtools sort -o $file -O bam -T tmp -@ 12 $file;
+done
+#
+## Peak call bam files
+#
+nice R
+inputs <- cbind(name=c("ES-Bruce4-H3K27ac","EsrrbNULL_H3K27ac","EsrrbWT_H3K27ac","GSE24164_mESC_H3K27ac","GSE56098_H3K27ac_EpiLC_minusActivin","GSE56098_H3K27ac_EpiLC_plusActivin","GSE56098_H3K27ac_ESC"),ip=c("ES-Bruce4-H3K27ac-mouse.bam","EsrrbNULL_H3K27ac.bam","EsrrbWT_H3K27ac.bam","GSE24164_mESC_H3K27ac.bam","GSE56098_H3K27ac_EpiLC_minusActivin.bam","GSE56098_H3K27ac_EpiLC_plusActivin.bam","GSE56098_H3K27ac_ESC.bam"),input=c("ES-Bruce4-Control-mouse.bam","EsrrbNULL_input.bam","EsrrbWT_input.bam","GSE24164_mESC_WCE.bam","GSE56098_Input_EpiLC_minusActivinA.bam","GSE56098_Input_EpiLC_plusActivinA.bam","GSE56098_Input_ESC.bam"))
+write.table(inputs,"inputs.txt",sep=",",quote=F,col.names=F,row.names=F)
+q()
+n
+while read LINE;
+do
+name=`echo $LINE | cut -f 1 -d ","`
+treatment=`echo $LINE | cut -f 2 -d ","`
+control=`echo $LINE | cut -f 3 -d ","`
+macs2 callpeak -t $treatment -c $control -n $name -f BAM -g mm --broad; 
+done < inputs.txt
+for FILE in *.r
+do
+Rscript $FILE
+done
+nice R
+peaks <- list.files()[grep("broadPeak",list.files())]
+for(i in 1:length(peaks)){
+reading <- read.table(peaks[i],stringsAsFactors=F)
+assign(peaks[i],reading)
+cat(peaks[i],nrow(reading),"\n")
+}
+q()
+n
+#
+## Assigning peaks to genomic regions
+#
+PATH=$PATH:/data/seqtools/homer/bin/ 
+find . -name '*.broadPeak' | while read FILE 
+do
+annotatePeaks.pl $FILE mm9 > "`basename "$FILE" .broadPeak `_annotation.txt"
+done
+#
+nice R
+annotations <- list.files()[grep("_annotation.txt",list.files())]
+for(i in 1:length(annotations)){
+reading <- read.table(annotations[i],head=T,sep="\t",comment.char="",quote="",stringsAsFactors=F)
+reading$Annotation[grep("intron",reading$Annotation)] <- "intron"
+reading$Annotation[grep("promoter-TSS",reading$Annotation)] <- "promoter-TSS"
+reading$Annotation[grep("exon",reading$Annotation)] <- "exon"
+reading$Annotation[grep("non-coding",reading$Annotation)] <- "non-coding"
+reading$Annotation[grep("TTS",reading$Annotation)] <- "TTS"
+cat(annotations[i]," ",table(reading$Annotation),"\n")
+assign(annotations[i],reading)
+}
+#
+## Create GFFs
+#
+nice R
+toRead <- list.files()[grep(".gff",list.files())]
+for(i in 1:length(toRead)){
+reading <- read.table(toRead[i],head=F,skip=2,stringsAsFactors=F,comment.char="",quote="")
+reading <- reading[,c(1,3,2,4:ncol(reading))]
+reading[,9] <- gsub(";","",reading[,9])
+assign(toRead[i],reading)
+newName <- gsub(".gff","_reordered.gff",toRead[i])
+write.table(reading,newName,sep="\t",row.names=F,col.names=F,quote=F)
+}
+samtools sort
+cd /data/seqtools/rose/
+while read LINE;
+do
+name=`echo $LINE | cut -f 1 -d ","`
+treatment=`echo $LINE | cut -f 2 -d ","`
+control=`echo $LINE | cut -f 3 -d ","`
+gff=`echo _peaks_reordered.gff` 
+dirName=`echo _ROSE`
+python ROSE_main.py -g mm9 -i /data/emmabell42/Analysis/ROSE/bam/$name$gff -r /data/emmabell42/Analysis/ROSE/bam/$treatment -o /data/emmabell42/Analysis/ROSE/bam/$name$dirName -c  /data/emmabell42/Analysis/ROSE/bam/$control
+done < /data/emmabell42/Analysis/ROSE/bam/inputs.txt
