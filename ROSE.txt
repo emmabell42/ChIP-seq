@@ -73,7 +73,7 @@ assign(toRead[i],reading)
 newName <- gsub(".gff","_reordered.gff",toRead[i])
 write.table(reading,newName,sep="\t",row.names=F,col.names=F,quote=F)
 }
-samtools sort
+for file in *.bam; do samtools sort -o $file -O bam -T tmp -@ 12 $file; done
 cd /data/seqtools/rose/
 while read LINE;
 do
@@ -84,3 +84,42 @@ gff=`echo _peaks_reordered.gff`
 dirName=`echo _ROSE`
 python ROSE_main.py -g mm9 -i /data/emmabell42/Analysis/ROSE/bam/$name$gff -r /data/emmabell42/Analysis/ROSE/bam/$treatment -o /data/emmabell42/Analysis/ROSE/bam/$name$dirName -c  /data/emmabell42/Analysis/ROSE/bam/$control
 done < /data/emmabell42/Analysis/ROSE/bam/inputs.txt
+#
+## Assign Super Enhancers to proximal gene
+#
+PATH=$PATH:/data/seqtools/homer/bin/ 
+find . -name '*_AllEnhancers.table.txt' | while read FILE;
+do
+toAnnotate=` echo $FILE | cut -f -4`
+annotatePeaks.pl $toAnnotate mm9 > "`basename "$FILE" .table.txt `_annotation.txt"
+done
+# Files moved manually. Don't judge me, I'm tired.
+#
+## Do the ESC-Esrrb-/- and Esrrb+/+ Super Enhancers have higher expression than the Typical Enhancers?
+#
+nice R
+# Read in microarray esrrbnull.data and SE identity files
+toMatch <- c("_AllEnhancers_annotation.txt","_AllEnhancers.table.txt")
+toRead <- list.files(recursive=T)[grep(paste0(toMatch,collapse="|"),list.files(recursive=T))]
+toName <- sapply(sapply(toRead,strsplit,split="/"),function(x) x[2])
+#stuck here
+for(i in 1:(length(toRead)/2)){
+annotated <- read.table(toRead[seq(1,14,2)[i]],head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t")
+annotated <- cbind(annotated,read.table(toRead[seq(2,14,2)[i]],head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t",skip=5)[,10])
+assign(toName[i],annotated)
+}
+setwd("/data/emmabell42/Microarray/Esrrb_null_transcriptome_Histoshi_Niwa/Data")
+esrrbnull.data <- read.table(file="ExprData_Raw_110613_transcript_core.txt",sep="\t",comment.char="",head=T,quote="",stringsAsFactors=F)
+library(lumi)
+library(lumiMouseIDMapping)
+library(lumiMouseAll.db)
+library(limma)
+library(annotate)
+library(illuminaMousev2.db)
+esrrbnull.norm <- as.matrix(esrrbnull.data[,5:10])
+esrrbnull.log <- log2(esrrbnull.norm)
+esrrbnull.norm <- lumiN(esrrbnull.log,method="quantile")
+rownames(esrrbnull.norm) <- esrrbnull.data[,15]
+colnames(esrrbnull.norm) <- c("Fl 1","Fl 2","Fl 3","Null 1","Null 2","Null 3")
+
+
