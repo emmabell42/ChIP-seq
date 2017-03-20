@@ -1,0 +1,141 @@
+########################################
+#
+## Merging bam file
+#
+########################################
+#
+## Young
+#
+cd /data/emmabell42/seq/ChIP-seq/Young/bam
+nice R
+bamFiles <- list.files()[grep(".bam",list.files())]
+bamTable <- cbind(bamFiles,NA)
+bamTable[grep(paste(c("SRR058981","SRR058982"),collapse="|"),bamTable[,1]),2] <- "mESC_Smc1"
+bamTable[grep(paste(c("SRR058983","SRR058984"),collapse="|")
+,bamTable[,1]),2] <- "mESC_Smc3"
+bamTable[grep(paste(c("SRR058985","SRR058986"),collapse="|"),bamTable[,1]),2] <- "mESC_Med12"
+bamTable[grep(paste(c("SRR058987","SRR058988"),collapse="|"),bamTable[,1]),2] <- "mESC_Med1"
+bamTable[grep(paste(c("SRR058989","SRR058990"),collapse="|"),bamTable[,1]),2] <- "mESC_Nipbl"
+bamTable[grep(paste(c("SRR058991","SRR058992"),collapse="|"),bamTable[,1]),2] <- "MEF_CTCF"
+bamTable[grep(paste(c("SRR058993"),collapse="|"),bamTable[,1]),2] <- "MEF_Med1"
+bamTable[grep(paste(c("SRR058994"),collapse="|"),bamTable[,1]),2] <- "MEF_Med12"
+bamTable[grep(paste(c("SRR058995","SRR058996"),collapse="|"),bamTable[,1]),2] <- "MEF_Smc1"
+bamTable[grep(paste(c("SRR058997"),collapse="|"),bamTable[,1]),2] <- "mESC_WCE_GSE22562"
+bamTable[grep(paste(c("SRR066765"),collapse="|"),bamTable[,1]),2] <- "mESC_H3K4me1"
+bamTable[grep(paste(c("SRR066766","SRR066767"),collapse="|"),bamTable[,1]),2] <- "mESC_H3K27ac"
+bamTable[grep(paste(c("SRR066768"),collapse="|"),bamTable[,1]),2] <- "mESC_H3"
+bamTable[grep(paste(c("SRR066769"),collapse="|"),bamTable[,1]),2] <- "mESC_H3K4me3"
+bamTable[grep(paste(c("SRR066787"),collapse="|"),bamTable[,1]),2] <- "mESC_WCE_GSE24164"
+bamTable[grep(paste(c("SRR066788","SRR066789"),collapse="|"),bamTable[,1]),2] <- "mESC_p300"
+bamTable[grep(paste(c("SRR1014798"),collapse="|"),bamTable[,1]),2] <- "mESC_MBD3"
+bamTable[grep(paste(c("SRR713340"),collapse="|"),bamTable[,1]),2] <- "mESC_Oct4"
+bamTable[grep(paste(c("SRR713341"),collapse="|"),bamTable[,1]),2] <- "mESC_Sox2"
+bamTable[grep(paste(c("SRR713342"),collapse="|"),bamTable[,1]),2] <- "mESC_Nanog"
+bamTable[grep(paste(c("SRR713343"),collapse="|"),bamTable[,1]),2] <- "mESC_WCE_GSE44286"
+bamTable[grep(paste(c("SRR713344"),collapse="|"),bamTable[,1]),2] <- "mESC_H3K4"
+bamTable[grep(paste(c("SRR713345","SRR1035556"),collapse="|"),bamTable[,1]),2] <- "mESC_Suz12"
+bamTable[grep(paste(c("SRR713346"),collapse="|"),bamTable[,1]),2] <- "mESC_Cdk8"
+bamTable[grep(paste(c("SRR713347"),collapse="|"),bamTable[,1]),2] <- "mESC_Cdk9"
+bamTable[grep(paste(c("SRR713348"),collapse="|"),bamTable[,1]),2] <- "C2C12_WCE"
+bamTable2 <- array("",dim=c(length(unique(bamTable[,2])),max(table(bamTable))+1))
+bamTable2[,1] <- unique(bamTable[,2])
+bamTable2[1:10,1] <- paste0("GSE22562_",bamTable2[1:10,1])
+bamTable2[11:15,1] <- paste0("GSE24164_",bamTable2[11:15,1])
+bamTable2[16:26,1] <- paste0("GSE44286_",bamTable2[16:26,1])
+bamTable2[,1] <- gsub("_GSE22562","",bamTable2[,1])
+bamTable2[,1] <- gsub("_GSE24164","",bamTable2[,1])
+bamTable2[,1] <- gsub("_GSE44286","",bamTable2[,1])
+for(i in 1:nrow(bamTable2)){
+factor <- unique(bamTable[,2])[i]
+numCols <- length(which(bamTable[,2]==factor))-1
+bamTable2[i,2:(2+numCols)] <- bamTable[which(bamTable[,2]==factor),1]
+}
+bamTable2 <- bamTable2[order(bamTable2[,3],decreasing=T),]
+write.table(bamTable2,"toMerge.txt",sep="\t",row.names=F,col.names=F,quote=F)
+q()
+n
+#
+while read LINE;
+do
+cols=$( echo $LINE | awk '{print NF}') 
+echo $cols
+if [ $cols -eq 3 ]
+then
+rep1=`echo $LINE | cut -f 2 -d " "`
+rep2=`echo $LINE | cut -f 3 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+samtools merge ../merged.bam/$name".bam" $rep1 $rep2
+else
+rep1=`echo $LINE | cut -f 2 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+mv $rep1 ../merged/bam/$name.bam
+fi
+done < toMerge.txt
+
+while read LINE;
+mv $sra $name
+#
+## ENCODE
+#
+cd data/emmabell42/seq/ChIP-seq/ENCODE/bam
+while read LINE;
+do
+rep1=`echo $LINE | cut -f 2 -d " "`
+rep2=`echo $LINE | cut -f 3 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+samtools merge ../merged.bam/$name".bam" $rep1 $rep2
+done < toMerge.txt
+#
+##
+#
+cut -f 1,3 even.txt > even.tmp.txt
+cut -f 1,3 odd.txt > odd.tmp.txt
+paste even.tmp.txt odd.tmp.txt | column -s $'\t' -t > toMerge.txt
+mkdir merged.bam
+while read LINE;
+do
+rep1=`echo $LINE | cut -f 1 -d " "`
+rep2=`echo $LINE | cut -f 3 -d " "`
+name=`echo $LINE | cut -f 2 -d " "`
+samtools merge ./merged.bam/$name".bam" ./bam/$rep1".bam" ./bam/$rep2".bam"
+done < toMerge.txt
+#
+## Wysocka
+#
+cd data/emmabell42/seq/ChIP-seq/Wysocka/bam
+while read LINE;
+do
+cols=$( echo $LINE | awk '{print NF}') 
+echo $cols
+if [ $cols -eq 2 ]
+then
+rep1=`echo $LINE | cut -f 2 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+GSE56098=`echo "GSE56098_"`
+mv $rep1 ../merged.bam/$GSE56098$name.bam
+else
+bam=`echo $LINE | cut -f 2- -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+GSE56098=`echo "GSE56098_"`
+samtools merge ../merged.bam/$GSE56098$name".bam" $bam
+fi
+done < toMerge.txt
+#
+## Remaining
+#
+cd data/emmabell42/seq/ChIP-seq/remaining/bam
+while read LINE;
+do
+cols=$( echo $LINE | awk '{print NF}') 
+echo $cols
+if [ $cols -eq 2 ]
+then
+rep1=`echo $LINE | cut -f 2 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+mv $rep1 ../merged/bam/$name.bam
+else
+bam=`echo $LINE | cut -f 2- -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+samtools merge ../merged.bam/$name".bam" $bam
+fi
+done < toMerge.txt
