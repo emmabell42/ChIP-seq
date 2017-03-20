@@ -110,18 +110,41 @@ done
 ## Do the ESC-Esrrb-/- and Esrrb+/+ Super Enhancers have higher expression than the Typical Enhancers?
 #
 nice R
+library(GenomicRanges)
 # Read in microarray esrrbnull.data and SE identity files
 toMatch <- c("_AllEnhancers_annotation.txt","_AllEnhancers.table.txt")
 toRead <- list.files(recursive=T)[grep(paste0(toMatch,collapse="|"),list.files(recursive=T))]
-toName <- sapply(sapply(toRead,strsplit,split="/"),function(x) x[length(x)])[8:14]
-#stuck here
+toName <- gsub("_peaks_reordered_AllEnhancers_annotation.txt","",as.character(sapply(sapply(toRead,strsplit,split="/"),function(x) x[length(x)])[8:14]))
 for(i in 1:7){
-enhancers <- read.table(toRead[seq(1,7,1)[i]],head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t",skip=5)
+#enhancers <- read.table(toRead[seq(1,7,1)[i]],head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t",skip=5)
 annotation <- read.table(toRead[seq(8,14,1)[i]],head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t")
-annotation <- cbind(annotation,isSuper=enhancers[,10])
-assign(toName[seq(8,14,1)[i]],annotation)
-write.table(annotation,)
+#annotation <- cbind(annotation,isSuper=enhancers[,10])
+assign(toName[i],annotation)
+#write.table(annotation,toName[i],sep="\t",row.names=F,quote=F)
+annotation$Annotation[grep("intron",annotation$Annotation)] <- "intron"
+annotation$Annotation[grep("promoter-TSS",annotation$Annotation)] <- "promoter-TSS"
+annotation$Annotation[grep("exon",annotation$Annotation)] <- "exon"
+annotation$Annotation[grep("non-coding",annotation$Annotation)] <- "non-coding"
+annotation$Annotation[grep("TTS",annotation$Annotation)] <- "TTS"
+cat(toName[i]," ",table(annotation$Annotation[which(annotation$isSuper==1)]),"\n")
+annotation.gr <- with(annotation,GRanges(annotation[,2],IRanges(annotation[,3],annotation[,4])))
+mcols(annotation.gr,use.names=T) <- cbind(annotation[,1],annotation[,8],annotation[,16],annotation[,20])
+annotation.se <- annotation.gr[which(mcols(annotation.gr)[,4]==1)]
+annotation.te <- annotation.gr[which(mcols(annotation.gr)[,4]==0)]
+assign(paste0(toName[i],".gr"),annotation.gr)
+assign(paste0(toName[i],".se.gr"),annotation.se)
+assign(paste0(toName[i],".te.gr"),annotation.te)
 }
+toName.gr <- paste0(toName,".gr")
+toName.se.gr <- paste0(toName,".se.gr")
+toName.te.gr <- paste0(toName,".te.gr")
+library(ChIPpeakAnno)
+#
+## Calculate overlap of ESC Super Enhancers
+#
+counts.esc <- makeVennDiagram(Peaks=list(get(toName.se.gr[1]),get(toName.se.gr[3]),get(toName.se.gr[4]),get(toName.se.gr[7])),NameOfPeaks=c(toName[c(1,3,4,7)]))
+counts.esrrb <- makeVennDiagram(Peaks=list(get(toName.se.gr[3]),get(toName.se.gr[2])),NameOfPeaks=c(toName[c(3,2)]))
+
 setwd("/data/emmabell42/Microarray/Esrrb_null_transcriptome_Histoshi_Niwa/Data")
 esrrbnull.data <- read.table(file="ExprData_Raw_110613_transcript_core.txt",sep="\t",comment.char="",head=T,quote="",stringsAsFactors=F)
 library(lumi)
