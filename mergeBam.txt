@@ -55,6 +55,7 @@ write.table(bamTable2,"toMerge.txt",sep="\t",row.names=F,col.names=F,quote=F)
 q()
 n
 #
+#!/bin/bash
 while read LINE;
 do
 cols=$( echo $LINE | awk '{print NF}') 
@@ -66,9 +67,15 @@ rep2=`echo $LINE | cut -f 3 -d " "`
 name=`echo $LINE | cut -f 1 -d " "`
 samtools merge ../merged.bam/$name".bam" $rep1 $rep2
 else
+while read LINE;
+do
+cols=$( echo $LINE | awk '{print NF}') 
+echo $cols
+if [ $cols -eq 2 ]
+then
 rep1=`echo $LINE | cut -f 2 -d " "`
 name=`echo $LINE | cut -f 1 -d " "`
-mv $rep1 ../merged/bam/$name.bam
+cp ./$rep1 ../merged.bam/$name.bam
 fi
 done < toMerge.txt
 
@@ -78,6 +85,7 @@ mv $sra $name
 ## ENCODE
 #
 cd data/emmabell42/seq/ChIP-seq/ENCODE/bam
+#!/bin/bash
 while read LINE;
 do
 rep1=`echo $LINE | cut -f 2 -d " "`
@@ -124,6 +132,27 @@ done < toMerge.txt
 ## Remaining
 #
 cd data/emmabell42/seq/ChIP-seq/remaining/bam
+#!/bin/bash
+while read LINE;
+do
+cols=$( echo $LINE | awk '{print NF}') 
+echo $cols
+if [ $cols -eq 2 ]
+then
+rep1=`echo $LINE | cut -f 2 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+cp ./$rep1 ../merged/bam/$name.bam
+else
+bam=`echo $LINE | cut -f 2- -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+samtools merge ../merged.bam/$name".bam" $bam
+fi
+done < toMerge.txt
+#
+## Chen
+#
+cd data/emmabell42/seq/ChIP-seq/Chen/bam
+#!/bin/bash
 while read LINE;
 do
 cols=$( echo $LINE | awk '{print NF}') 
@@ -139,3 +168,6 @@ name=`echo $LINE | cut -f 1 -d " "`
 samtools merge ../merged.bam/$name".bam" $bam
 fi
 done < toMerge.txt
+find . -name "*.sam" | while read filename; 
+do
+samtools view -bS $filename > ./bam/"`basename "$filename" .sam`.bam"; done
