@@ -94,3 +94,35 @@ do
 /data/seqtools/bowtie2-2.2.3/bowtie2 -x mm9 -U $filename > ./sam/"`basename "$filename" .trimmed.fastq`.sam" -p 8;
 samtools view -bS ./sam/"`basename "$filename" .trimmed.fastq`.sam" > ./bam/"`basename "$filename" .trimmed.fastq`.bam";
 done
+##########
+## Merge bam files
+##########
+#
+## Requires a tab-delimited table containing the name and bams to merge.
+#
+cd bam
+while read LINE;
+do
+cols=$( echo $LINE | awk '{print NF}') 
+echo $cols
+if [ $cols -eq 2 ]
+then
+rep1=`echo $LINE | cut -f 2 -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+cp $rep1 ../merged.bam/$name.bam
+else
+bam=`echo $LINE | cut -f 2- -d " "`
+name=`echo $LINE | cut -f 1 -d " "`
+samtools merge ../merged.bam/$name".bam" $bam
+fi
+done < toMerge.txt
+##########
+## Subset bam files
+##########
+mkdir ./subset.bam
+for FILE in ./merged.bam/*.bam
+do
+samtools sort -o $FILE -O bam -T tmp $FILE -@12
+bedtools intersect -abam $FILE -b /data/emmabell42/resources/ESC_enhancers_plus20.bed > ./subset.bam/"`basename "$FILE" .merged.bam`.subset.bam" -sorted;
+done
+
