@@ -9,8 +9,8 @@
 library(vioplot)
 meth <- read.table("X:/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/DNA methylation/Promoter methylation/ES_prom_super_enhancer_methylation.txt",sep="\t",head=T,comment.char="",quote="")
 dev.new(width=400,height=600)
-vioplot(na.omit(meth[,1]),na.omit(meth[,2]),na.omit(meth[,3]),names=c("ES-2i","ES-serum","EpiSC"),col="white",border="black",rectCol="darkgrey")
-vioplot(na.omit(meth[,4]),na.omit(meth[,5]),na.omit(meth[,6]),names=c("ES-2i","ES-serum","EpiSC"),col="white",border="black",rectCol="darkgrey")
+vioplot(na.omit(meth[,1]),na.omit(meth[,2]),na.omit(meth[,3]),names=c("ES-2i","ES-serum","EpiSC"),col="grey",border="black",rectCol="darkgrey")
+vioplot(na.omit(meth[,4]),na.omit(meth[,5]),na.omit(meth[,6]),names=c("ES-2i","ES-serum","EpiSC"),col="grey",border="black",rectCol="darkgrey")
 #
 ## B
 #
@@ -21,8 +21,8 @@ tmp <- read.table(toRead[i],sep="\t",head=T,comment.char="",quote="")
 assign(toRead[i],tmp)
 }
 dev.new(width=400,height=600)
-vioplot(na.omit(get(toRead[6])[,15]),na.omit(get(toRead[1])[,15]),na.omit(get(toRead[4])[,15]),names=c("ES-2i","ES-serum","EpiSC"),col="white",border="black",rectCol="darkgrey")
-vioplot(na.omit(get(toRead[5])[,15]),na.omit(get(toRead[7])[,15]),na.omit(get(toRead[3])[,15]),names=c("ES-2i","ES-serum","EpiSC"),col="white",border="black",rectCol="darkgrey")
+vioplot(na.omit(get(toRead[6])[,15]),na.omit(get(toRead[1])[,15]),na.omit(get(toRead[4])[,15]),names=c("ES-2i","ES-serum","EpiSC"),col="grey",border="black",rectCol="darkgrey")
+vioplot(na.omit(get(toRead[5])[,15]),na.omit(get(toRead[7])[,15]),na.omit(get(toRead[3])[,15]),names=c("ES-2i","ES-serum","EpiSC"),col="grey",border="black",rectCol="darkgrey")
 #
 ## C
 #
@@ -70,15 +70,16 @@ global.gc.pc <- 0.4171
 global.oe <- 0.0083/((0.4171/2)^2)
 # Remove the huge outlier in the TE
 cg.oe[[2]][which(cg.oe[[2]]>2)] <- NA
+# c("#3288bd","#f46d43")
 png("enhancer_lengths.png")
-boxplot(lengths[[1]],lengths[[3]],main="Length (BP)",border=c("#3288bd","#f46d43"),pch=16)
+boxplot(lengths[[1]],lengths[[2]],lengths[[3]],main="Length (BP)",col="grey",pch=16)
 dev.off()
 png("enhancer_gc_pc.png")
-boxplot(gc.pc[[1]],gc.pc[[3]],Main="GC%",border=c("#3288bd","#f46d43"),pch=16)
+boxplot(gc.pc[[1]],gc.pc[[2]],gc.pc[[3]],main="GC%",col="grey",pch=16)
 abline(h=global.gc.pc,col="darkgrey",lty=2,lwd=2)
 dev.off()
 png("enhancer_cg_oe.png")
-boxplot(cg.oe[[1]],cg.oe[[3]],main="CG OE",border=c("#3288bd","#f46d43"),pch=16)
+boxplot(cg.oe[[1]],cg.oe[[2]],cg.oe[[3]],main="CG OE",col="grey",pch=16)
 abline(h=global.oe,col="darkgrey",lty=2,lwd=2)
 dev.off()
 ############################################################################
@@ -87,13 +88,120 @@ dev.off()
 #
 ############################################################################
 #
+## C
 #
+library(GenomicRanges)
+subreg <- read.table("SuperEnhancer_subregion_methstatus.txt",sep="\t",head=T,comment.char="",quote="")
+subregDMR <- subreg[which(subreg$Status=="DMR"),]
+subregProtected <- subreg[which(subreg$Status=="Protected"),]
+subregDMR.ranges <- with(subregDMR, GRanges(SE_chr, IRanges(start=Subregion_start, end=Subregion_end)))
+subregProtected.ranges <- with(subregProtected, GRanges(SE_chr, IRanges(start=Subregion_start, end=Subregion_end)))
+subreg.ranges <- with(subreg, GRanges(Subregion_chr, IRanges(start=Subregion_start, end=Subregion_end)))
+subregESCunmeth <- rbind(subregDMR,subregProtected)
+subregESCunmeth.ranges <- with(subregESCunmeth, GRanges(Subregion_chr, IRanges(start=Subregion_start, end=Subregion_end)))
+subregMeth <- read.table("SE_meth.bed",sep="\t",comment.char="",quote="",head=F,col.names=c("chr","starts","ends","name"),stringsAsFactors=F)
+subregMeth.ranges <- with(meth, GRanges(chr, IRanges(start=starts, end=ends)))
+
+DMRlengths <- subregDMR$Subregion_end-subregDMR$Subregion_start
+unmethlengths <- subregProtected$Subregion_end-subregProtected$Subregion_start
+methlengths <- subregMeth[,3]-subregMeth[,2]
+
+#Does CpG density vary across subregions?
+
+library(BSgenome.Mmusculus.UCSC.mm9, quietly = TRUE)
+library(TxDb.Mmusculus.UCSC.mm9.knownGene, quietly = TRUE)
+
+subregDMR.seqs <- getSeq(Mmusculus, seqnames(subregDMR.ranges), start(subregDMR.ranges), end(subregDMR.ranges), as.character = T)
+
+library(stringr)
+subregDMR.cg.count <- rep(NA,nrow(subregDMR))
+subregDMR.c.count <- rep(NA,nrow(subregDMR))
+subregDMR.g.count <- rep(NA,nrow(subregDMR))
+
+for(i in 1:nrow(subregDMR)){
+subregDMR.cg.count[i] <- str_count(subregDMR.seqs[i], fixed("CG"))
+subregDMR.c.count[i] <- str_count(subregDMR.seqs[i], fixed("C"))
+subregDMR.g.count[i] <- str_count(subregDMR.seqs[i], fixed("G"))
+}
+
+subregDMR.GC <- (subregDMR.c.count+subregDMR.g.count)/DMRlengths
+subregDMR.oe <- (subregDMR.cg.count/(DMRlengths))/((subregDMR.GC/2)^2)
+
+#Plot the CpGs/dinucleotide
+boxplot(subregProtected.cg.count/(unmethlengths-1),subregDMR.cg.count/(DMRlengths-1),subregMeth.cg.count/(methlengths-1),names=c("PU","DMR","PM"),col="lightblue",notch=T,ylim=c(0,0.22),ylab="Observed frequency of CpGs")
+abline(h=0.0083,col="darkgrey",lty=2)
+
+#Plot lengths of subregions
+png("subreg_lengths.png",w=240)
+boxplot(unmethlengths,DMRlengths,methlengths,notch=T,names=c("PU","DMR","PM"),col=c("green","magenta","grey"),pch=20)
+dev.off()
+
+#Plot observed:expected CpGs
+png("subreg_cgoe.png",w=240)
+boxplot(subregProtected.oe,subregDMR.oe,subregMeth.oe,names=c("PU","DMR","PM"),col=c("green","magenta","grey"),notch=T,ylab="Observed:expected frequency of CpGs",pch=20)
+abline(h=(0.0083/((0.4171/2)^2)),col="darkgrey",lty=2)
+dev.off()
 #
+## E
+#
+meth <- read.table("X:\\Current lab members\\Emma Bell\\Data\\Collaborators\\Alice Jouneau\\DNA methylation\\SuperEnhancelet_methstatus_PU_DMR_PM_ES_EpiSC.txt",head=T,sep="\t",comment.char="",quote="")
+library(vioplot)
+dataSets <- c("Marks_2i","Marks_serum","Schubeler_serum","Veillard_EpiSC","Surani_EpiLC","Surani_EpiSC")
+methtable <- array(NA,dim=c(6*nrow(meth),6))
+methtable <- data.frame(methtable)
+colnames(methtable) <- c("SE","Region","Type","Length","DataSet","Meth")
+methtable[,1] <- rep(meth[,1],6)
+methtable[,2] <- rep(meth[,2],6)
+methtable[,3] <- rep(meth[,3],6)
+methtable[,4] <- rep(meth[,4],6)
+methtable[,5] <- rep(dataSets,each=nrow(meth))
+methtable[,6] <- as.vector(as.matrix(meth[,c(5,7,9,11,13,15)]))
+for(i in 1:length(dataSets)){
+toPlot <- methtable[which(methtable[,5]==dataSets[i]),]
+toPlot <- na.omit(toPlot)
+fileName <- paste0("SElets_",dataSets[i],".png")
+png(fileName,w=240)
+boxplot(toPlot[which(toPlot[,3]=="PU"),6],toPlot[which(toPlot[,3]=="DM"),6],toPlot[which(toPlot[,3]=="PM"),6],names=c("PU","DM","PM"),col=c("green","magenta","grey"),pch=20)
+title(main=dataSets[i])
+dev.off()
+}
+#
+## F
+#
+meth <- read.table("X:/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/DNA methylation/RRBS/synthese_by_CpG.txt",head=T,stringsAsFactors=F,comment.char="",quote="")
+samples <- colnames(meth)[seq(7,33,2)]
+samples <- gsub("_.*","",samples)
+icm.mean <- c()
+e6.5.mean <- c()
+e7.5.mean <- c()
+for(i in 1:nrow(meth)){
+icm.mean <- c(icm.mean,mean(as.numeric(meth[i,c(7,9,11,13,15)]),na.rm=T))
+e6.5.mean <- c(e6.5.mean,mean(as.numeric(meth[i,c(17,19,21,23)]),na.rm=T))
+e7.5.mean <- c(e7.5.mean,mean(as.numeric(meth[i,c(25,27,29,31,33)]),na.rm=T))
+}
+methtable <- cbind(meth[,1:5],rep(c("ICM","Epiblast_E6.5","Epiblast_E7.5"),each=10662),c(icm.mean,e6.5.mean,e7.5.mean))
+methtable <- methtable[which(methtable[,5]==1),]
+methtable[which(methtable[,3]=="PU"),3] <- 1
+methtable[which(methtable[,3]=="DM"),3] <- 2
+methtable[which(methtable[,3]=="PM"),3] <- 3
+colnames(methtable)[6:7] <- c("Sample","Meth")
+png("ICM.png",w=240)
+boxplot(methtable[which(methtable$Sample=="ICM"),7]~methtable[which(methtable$Sample=="ICM"),3],col=c("green","magenta","grey"),main="ICM",pch=20)
+dev.off()
+png("Epiblast_E6.5.png",w=240)
+boxplot(methtable[which(methtable$Sample=="Epiblast_E6.5"),7]~methtable[which(methtable$Sample=="ICM"),3],col=c("green","magenta","grey"),main="Epiblast E6.5",pch=20)
+dev.off()
+png("Epiblast_E7.5.png",w=240)
+boxplot(methtable[which(methtable$Sample=="Epiblast_E7.5"),7]~methtable[which(methtable$Sample=="Epiblast_E7.5"),3],col=c("green","magenta","grey"),main="Epiblast E7.5",pch=20)
+dev.off()
 ############################################################################
 #
 ## Manuscript figure 3
 #
 ############################################################################
+#
+## B and C
+#
 library(vioplot)
 setwd("X:/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/RNA-seq")
 expr <- read.table("expression_of_SE_associated_genes_vitro_vivo.txt",sep="\t",head=T,comment.char="",quote="",stringsAsFactors=F)
@@ -138,9 +246,20 @@ expr.comb[which(expr.comb[,1]=="Mixed"|expr.comb[,1]=="Hypomethylated"),1] <- "M
 boxplot(log10(expr.comb[which(expr.comb[,1]=="Hypermethylated"),5:7]))
 meth <-  na.omit(log10(expr.comb[which(expr.comb[,1]=="Hypermethylated"),5:7]))
 main <-  na.omit(log10(expr.comb[which(expr.comb[,1]=="Maintained"),5:7]))
-dev.new(width=4,height=6)
-vioplot(meth[,1],meth[,2],meth[,3],col="white",rectCol="darkgrey",border="magenta")
-vioplot(main[,1],main[,2],main[,3],col="white",rectCol="darkgrey",border=rgb(0,1,0))
-
-
-
+png("violinplot_rnaseq_invitro_meth.png",w=240)
+vioplot(meth[,1],meth[,2],meth[,3],col="pink")
+dev.off()
+png("violinplot_rnaseq_invitro_main.png",w=240)
+vioplot(main[,1],main[,2],main[,3],col="lightgreen")
+dev.off()
+meth <-  na.omit(log10(expr.comb[which(expr.comb[,1]=="Hypermethylated"),8:10]))
+main <-  na.omit(log10(expr.comb[which(expr.comb[,1]=="Maintained"),8:10]))
+png("violinplot_rnaseq_invivo_meth.png",w=240)
+vioplot(meth[,1],meth[,2],meth[,3],col="pink")
+dev.off()
+png("violinplot_rnaseq_invivo_main.png",w=240)
+vioplot(main[,1],main[,2],main[,3],col="lightgreen")
+dev.off()
+#
+## E and F
+#
