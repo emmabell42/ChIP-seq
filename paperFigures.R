@@ -261,5 +261,145 @@ png("violinplot_rnaseq_invivo_main.png",w=240)
 vioplot(main[,1],main[,2],main[,3],col="lightgreen")
 dev.off()
 #
+## D 
+#
+vitro <- read.table("//store.ic.ac.uk/IC/fom/surgeryandcancer/epigenetics-and-development/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/RNA-seq/In vitro/transfer_207097_files_9baad94a/ES_serum_vs_EpiSC_result.txt",sep="\t",head=T,stringsAsFactors=F,comment.char="",quote="")
+vivo.ape <- read.table("//store.ic.ac.uk/IC/fom/surgeryandcancer/epigenetics-and-development/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/RNA-seq/In vitro/transfer_207097_files_9baad94a/mm9 - ICM vs APE - annotated.txt",sep="\t",head=T,stringsAsFactors=F,comment.char="",quote="")
+vivo.erse <- read.table("//store.ic.ac.uk/IC/fom/surgeryandcancer/epigenetics-and-development/Current lab members/Emma Bell/Data/Collaborators/Alice Jouneau/RNA-seq/In vitro/transfer_207097_files_9baad94a/mm9 - ICM vs ERSE - annotated.txt",sep="\t",head=T,stringsAsFactors=F,comment.char="",quote="")
+pathways <- read.table(file="//store.ic.ac.uk/IC/fom/surgeryandcancer/epigenetics-and-development/Current lab members/Emma Bell/Data/Resources/CPDB_pathways_genes_mouse.txt",sep="\t",header=TRUE)
+se <- read.table("//store.ic.ac.uk/IC/fom/surgeryandcancer/epigenetics-and-development/Current lab members/Emma Bell/Data/Analysis/Super Enhancers/Annotation/SE_mRNAs.txt",sep="\t",head=T,stringsAsFactors=F,comment.char="",quote="")
+vitro$Adjust.pValue[which(vitro$Adjust.pValue==0)] <- 0.001
+selets <- read.table("//store.ic.ac.uk/IC/fom/surgeryandcancer/epigenetics-and-development/Current lab members/Emma Bell/Data/Analysis/Super Enhancers/Super Enhancelets/SuperEnhancer_subregion_methstatus.txt",sep="\t",head=T,stringsAsFactors=F,comment.char="",quote="")
+selets$SE.type[which(selets$SE.type=="Hypomethylated")] <- "Maintained"
+selets$SE.type[which(selets$SE.type=="Mixed")] <- "Maintained"
+selets$SE.type[which(selets$SE.type=="Hypermethylated")] <- "Silenced"
+maintained <- unique(selets$Associated.gene[which(selets$SE.type=="Maintained")])
+silenced <- unique(selets$Associated.gene[which(selets$SE.type=="Silenced")])
+silenced[which(silenced=="")] <- NA
+silenced[which(silenced=="Hypermethylatedt1")] <- "Dmrt1"
+silenced <- na.omit(silenced)
+colnames(vitro)[5] <- "adj.pValue"
+colnames(vivo.ape)[2] <- "Symbol"
+colnames(vivo.ape)[4] <- "adj.pValue"
+colnames(vivo.erse)[5] <- "Symbol"
+colnames(vivo.erse)[3] <- "adj.pValue"
+pathway.genes <- list()
+for(i in 1:nrow(pathways)){
+        pathway.genes[[i]] <- strsplit(as.character(pathways$hgnc_symbol_ids[i]),split=",")[[1]]
+}
+#Create results objects
+pathway.enrichments <- array(NA,dim=c(nrow(pathways),3))
+rownames(pathway.enrichments) <- pathways$pathway
+#Run geneSetTest
+experiment <- c("vitro","vivo.erse","vivo.ape")
+colnames(pathway.enrichments) <- experiment
+library(limma)
+for(i in 2:3){
+toTest <- get(experiment[i])
+for(j in 1:nrow(pathways)){
+		# default is for t-statistics. if using f-statistics (as in Fisher's meta-analysis statistics), comment out line 20 and uncomment line 21
+                pathway.enrichments[j,i] <- geneSetTest(index=which(toTest$Symbol %in% pathway.genes[[j]]),statistics=(-log10(toTest$adj.pValue)),ranks.only=FALSE,type="f",alternative="mixed")
+		#pathway.enrichments[j,i] <- geneSetTest(selected=which(rownames(statistics.table) %in% pathway.genes[[j]]),statistics=statistics.table[,i],type="f",ranks.only=FALSE)
+}
+pathway.enrichments[,i] <- p.adjust(pathway.enrichments[,i],method="BH")
+}
+se.geneSetTest <- array(NA,dim=c(3,3))
+rownames(se.geneSetTest) <- c("SE","Maintained","Silenced")
+colnames(se.geneSetTest) <- experiment
+for(i in 1:3){
+toTest <- get(experiment[i])
+se.geneSetTest[1,i] <- geneSetTest(index=which(toTest$Symbol %in% se[,2]),statistics=(-log10(toTest$adj.pValue)),ranks.only=FALSE,type="f",alternative="mixed")
+se.geneSetTest[2,i] <- geneSetTest(index=which(toTest$Symbol %in% maintained),statistics=(-log10(toTest$adj.pValue)),ranks.only=FALSE,type="f",alternative="mixed")
+se.geneSetTest[3,i] <- geneSetTest(index=which(toTest$Symbol %in% silenced),statistics=(-log10(toTest$adj.pValue)),ranks.only=FALSE,type="f",alternative="mixed")
+se.geneSetTest[,i] <- p.adjust(se.geneSetTest[,i],method="BH")
+}
+#
 ## E and F
 #
+cnrq <- read.table("X:/Current lab members/Emma Bell/Lab work/qPCR data/20150826 AJ conversion data/Final/CNRQ.txt",head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t")
+sumtab <- read.table("X:/Current lab members/Emma Bell/Lab work/qPCR data/20150826 AJ conversion data/Final/dataToPlot.txt",head=T,stringsAsFactors=F,comment.char="",quote="",sep="\t")
+cnrq[grep("R1",cnrq$Clone),"Clone"] <- "c14"
+targets <- unique(cnrq$Target)
+clones <- unique(cnrq$Clone)
+
+for(i in 1:length(targets)){
+target <- targets[i]
+toplot <- cnrq[which(cnrq$Target==target),]
+average <- sumtab[which(sumtab$Target==target),]
+toplot[which(toplot$Day==10),5] <- 8
+average[which(average$Day==10),3] <- 8
+ylim.2i <- c(0,max(toplot$RNCQ[which(toplot$Condition=="2i")],na.rm=T)*1.1)
+ylim.serum <- c(0,max(toplot$RNCQ[which(toplot$Condition=="Serum")],na.rm=T)*1.1)
+xlim <-c(0,8)
+png(paste0(target,"_2i_RelExp.png"),w=240)
+lp <- plot(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Clone==clones[1] & toplot$Day<8),],xlim=xlim,ylim=ylim.2i,type="o",pch=20,col="grey",main=target,names.arg=NULL,xaxt = 'n',yaxt = 'n',xlab="Day",ylab="Relative expression")
+grid(nx=NA,ny=NULL)
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Clone==clones[2] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Clone==clones[3] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Clone==clones[4] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Clone==clones[5] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Clone==clones[6] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RelExp~Day,data=average[which(average$Condition=="2i" & average$Day<8),],type="o",pch=16,names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="2i" & toplot$Day==8),],type="p",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RelExp~Day,data=average[which(average$Condition=="2i" & average$Day==8),],type="p",pch=16,names.arg=NULL,xaxt = 'n',yaxt = 'n')
+abline(v=7.5,lty=2,col="darkgrey")
+axis(1, at=c(0,1,2,3,7,8), labels=c(0,1,2,3,7,"cEpiSC"),tick=T, las=1, cex.axis=1)
+axis(2, at=axTicks(2), cex.axis=0.9, las=2)
+dev.off()
+png(paste0(target,"_Serum_RelExp.png"),w=240)
+lp <- plot(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Clone==clones[1] & toplot$Day<8),],xlim=xlim,ylim=ylim.serum,type="o",pch=20,col="grey",main=target,names.arg=NULL,xaxt = 'n',yaxt = 'n',xlab="Day",ylab="Relative expression")
+grid(nx=NA,ny=NULL)
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Clone==clones[2] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Clone==clones[3] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Clone==clones[4] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Clone==clones[5] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Clone==clones[6] & toplot$Day<8),],type="o",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RelExp~Day,data=average[which(average$Condition=="Serum" & average$Day<8),],type="o",pch=16,names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RNCQ~Day,data=toplot[which(toplot$Condition=="Serum" & toplot$Day==8),],type="p",pch=20,col="grey",names.arg=NULL,xaxt = 'n',yaxt = 'n')
+points(RelExp~Day,data=average[which(average$Condition=="Serum" & average$Day==8),],type="p",pch=16,names.arg=NULL,xaxt = 'n',yaxt = 'n')
+abline(v=7.5,lty=2,col="darkgrey")
+axis(1, at=c(0,1,2,3,7,8), labels=c(0,1,2,3,7,"cEpiSC"),tick=T, las=1, cex.axis=1)
+axis(2, at=axTicks(2), cex.axis=0.9, las=2)
+dev.off()
+}
+
+library(vioplot)
+ylim <- extendrange(c(min(log2(na.omit(sumtab$RelExp))),log2(max(sumtab$RelExp[which(sumtab$SE.type=="Maintained")])),f=0.05))
+png("Conversion_boxplot_2i_maintained.png",w=240)
+boxplot(log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Maintained" & sumtab$Day==1),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Maintained" & sumtab$Day==2),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Maintained" & sumtab$Day==3),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Maintained" & sumtab$Day==7),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Maintained" & sumtab$Day==10),"RelExp"])),col="lightgreen",ylim=ylim,pch=20)
+dev.off()
+png("Conversion_boxplot_2i_silenced.png",w=240)
+boxplot(log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Silenced" & sumtab$Day==1),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Silenced" & sumtab$Day==2),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Silenced" & sumtab$Day==3),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Silenced" & sumtab$Day==7),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="2i" & sumtab$SE.type=="Silenced" & sumtab$Day==10),"RelExp"])),col="pink",ylim=ylim,pch=20)
+dev.off()
+png("Conversion_boxplot_serum_maintained.png",w=240)
+boxplot(log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Maintained" & sumtab$Day==1),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Maintained" & sumtab$Day==2),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Maintained" & sumtab$Day==3),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Maintained" & sumtab$Day==7),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Maintained" & sumtab$Day==10),"RelExp"])),col="lightgreen",ylim=ylim,pch=20)
+dev.off()
+png("Conversion_boxplot_Serum_silenced.png",w=240)
+boxplot(log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Silenced" & sumtab$Day==1),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Silenced" & sumtab$Day==2),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Silenced" & sumtab$Day==3),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Silenced" & sumtab$Day==7),"RelExp"])),
+log2(na.omit(sumtab[which(sumtab$Condition=="Serum" & sumtab$SE.type=="Silenced" & sumtab$Day==10),"RelExp"])),col="pink",ylim=ylim,pch=20)
+dev.off()
+##########################################
+#
+## Figure 6
+#
+##########################################
+macs2 callpeak -t merged.bam/EsrrbNULL_Med1.bam -c merged.bam/EsrrbWT_Med1.bam -f BAM -g mm -n 20170621_NULL_Med1 -B
+macs2 callpeak -t merged.bam/EsrrbWT_Med1.bam -c merged.bam/EsrrbNULL_Med1.bam -f BAM -g mm -n 20170621_WT_Med1 -B
+macs2 callpeak -t merged.bam/EsrrbNULL_H3K27ac.bam -c merged.bam/EsrrbWT_H3K27ac.bam -f BAM -g mm -n 20170621_NULL_H3K27ac -B
+macs2 callpeak -t merged.bam/EsrrbWT_H3K27ac.bam -c merged.bam/EsrrbNULL_H3K27ac.bam -f BAM -g mm -n 20170621_WT_H3K27ac -B
+ 
