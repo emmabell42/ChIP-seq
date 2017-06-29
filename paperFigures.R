@@ -20,9 +20,12 @@ for(i in 1:length(toRead)){
 tmp <- read.table(toRead[i],sep="\t",head=T,comment.char="",quote="")
 assign(toRead[i],tmp)
 }
-dev.new(width=400,height=600)
+png("ESC_SE_meth.png",w=3,h=6,units="in",res=300)
 vioplot(na.omit(get(toRead[6])[,15]),na.omit(get(toRead[1])[,15]),na.omit(get(toRead[4])[,15]),names=c("ES-2i","ES-serum","EpiSC"),col="grey",border="black",rectCol="darkgrey")
+dev.off()
+png("ProB_SE_meth.png",w=3,h=6,units="in",res=300)
 vioplot(na.omit(get(toRead[5])[,15]),na.omit(get(toRead[7])[,15]),na.omit(get(toRead[3])[,15]),names=c("ES-2i","ES-serum","EpiSC"),col="grey",border="black",rectCol="darkgrey")
+dev.off()
 #
 ## C
 #
